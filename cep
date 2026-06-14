@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de CEP</title>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #eef2f7;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      padding: 36px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    h1 { font-size: 1.4rem; color: #1a1a2e; margin-bottom: 6px; }
+    p.subtitulo { font-size: 0.85rem; color: #888; margin-bottom: 24px; }
+
+    .campo-cep { display: flex; gap: 10px; margin-bottom: 20px; }
+
+    #cep {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    #cep:focus { border-color: #e91e8c; }
+
+    #btnPesquisar {
+      padding: 12px 20px;
+      background-color: #e91e8c;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    #btnPesquisar:hover { background-color: #c0177a; }
+    #btnPesquisar:disabled { background-color: #f4a0cc; cursor: not-allowed; }
+
+    #erro {
+      color: #c0392b;
+      background-color: #fdecea;
+      border: 1px solid #e74c3c;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      display: none;
+      margin-bottom: 16px;
+    }
+
+    #resultado { display: none; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+
+    .resultado-header {
+      background-color: #4a90e2;
+      color: #fff;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    .linha { display: flex; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+    .linha:last-child { border-bottom: none; }
+    .linha .rotulo { color: #888; width: 100px; flex-shrink: 0; }
+    .linha .valor { color: #1a1a2e; font-weight: 500; }
+
+    #loading { text-align: center; color: #e91e8c; font-size: 0.9rem; display: none; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Consulta de CEP</h1>
+    <p class="subtitulo">Digite um CEP brasileiro para buscar o endereço.</p>
+
+    <div class="campo-cep">
+      <input type="text" id="cep" placeholder="Ex: 01310-100" maxlength="9">
+      <button id="btnPesquisar">Pesquisar</button>
+    </div>
+
+    <p id="loading">Buscando...</p>
+    <p id="erro"></p>
+
+    <div id="resultado">
+      <div class="resultado-header">Endereço encontrado</div>
+      <div class="resultado-body">
+        <div class="linha"><span class="rotulo">CEP</span><span class="valor" id="r-cep"></span></div>
+        <div class="linha"><span class="rotulo">Logradouro</span><span class="valor" id="r-logradouro"></span></div>
+        <div class="linha"><span class="rotulo">Bairro</span><span class="valor" id="r-bairro"></span></div>
+        <div class="linha"><span class="rotulo">Cidade</span><span class="valor" id="r-localidade"></span></div>
+        <div class="linha"><span class="rotulo">Estado</span><span class="valor" id="r-uf"></span></div>
+        <div class="linha"><span class="rotulo">IBGE</span><span class="valor" id="r-ibge"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    $("#cep").on("input", function () {
+      let valor = $(this).val().replace(/\D/g, "");
+      if (valor.length > 5) {
+        valor = valor.slice(0, 5) + "-" + valor.slice(5, 8);
+      }
+      $(this).val(valor);
+    });
+
+    $("#cep").on("keypress", function (e) {
+      if (e.which === 13) $("#btnPesquisar").click();
+    });
+
+    $("#btnPesquisar").on("click", function () {
+      const cep = $("#cep").val().replace(/\D/g, "");
+
+      $("#erro").hide().text("");
+      $("#resultado").hide();
+
+      if (cep.length !== 8) {
+        $("#erro").text("Digite um CEP válido com 8 números.").show();
+        return;
+      }
+
+      $("#btnPesquisar").prop("disabled", true);
+      $("#loading").show();
+
+      $.ajax({
+        url: "https://viacep.com.br/ws/" + cep + "/json/",
+        method: "GET",
+        dataType: "json",
+        success: function (dados) {
+          $("#loading").hide();
+          $("#btnPesquisar").prop("disabled", false);
+
+          if (dados.erro) {
+            $("#erro").text("CEP não encontrado. Verifique e tente novamente.").show();
+            return;
+          }
+
+          $("#r-cep").text(dados.cep || "—");
+          $("#r-logradouro").text(dados.logradouro || "—");
+          $("#r-bairro").text(dados.bairro || "—");
+          $("#r-localidade").text(dados.localidade || "—");
+          $("#r-uf").text(dados.uf || "—");
+          $("#r-ibge").text(dados.ibge || "—");
+
+          $("#resultado").fadeIn(300);
+        },
+        error: function () {
+          $("#loading").hide();
+          $("#btnPesquisar").prop("disabled", false);
+          $("#erro").text("Erro ao conectar com a API. Tente novamente.").show();
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
